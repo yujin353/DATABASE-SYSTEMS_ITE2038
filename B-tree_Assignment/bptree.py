@@ -198,7 +198,7 @@ class Node:
                     print(str(i), end = ",")
             print("")
             index = bisect.bisect_left(self.key, key)
-            if index < (len(self.key)-1) and self.key[index] == key:##########
+            if index <= (len(self.key)-1) and self.key[index] == key:
                 index = index + 1
             self = self.child[index]
             self.key_search(key, 1)
@@ -209,7 +209,7 @@ class Node:
         while self.isleaf != 1:
             self = self.child[0]
 
-        while self.next != None:
+        while self != None:
             v = 0
             for i in self.key:
                 if int(i) >= start and int(i) <= end:
@@ -217,28 +217,27 @@ class Node:
                 v = v+1
             self = self.next
         
-    #def delete(self, key):
-        
+    def delete(self, key):
+        dd = 0
 
 import csv
 import sys
 
-
+#파일 만들기
 if(sys.argv[1] == "-c"):
-    #파일 만들기
     f = open(sys.argv[2], "w")
     degree = sys.argv[3]
     sys.stdout = f
     print("degree : " + degree)
     f.close()
 
+#삽입하기
 elif(sys.argv[1] == "-i"):
     #기존 index 파일에서 degree 읽어오기
     with open(sys.argv[2], "r") as f:
         degree_line = f.readline()
         degree = degree_line[9:]
     
-    #삽입하기
     pair = {}
     with open(sys.argv[3], "r") as file:
         file_read = csv.reader(file)
@@ -251,8 +250,9 @@ elif(sys.argv[1] == "-i"):
     for key in pair:
         root.insert(key, pair[key], 0)
     root.write()
-    
-elif(sys.argv[1] == "-d"):#삭제하기
+
+#삭제하기
+elif(sys.argv[1] == "-d"):
     #기존 index 파일에서 degree 읽어오기
     with open(sys.argv[2], "r") as f:
         degree_line = f.readline()
