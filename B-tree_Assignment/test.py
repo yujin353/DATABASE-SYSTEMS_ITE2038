@@ -217,10 +217,9 @@ class Node:
                 v = v+1
             self = self.next
         
-    def delete(self, key):
+    #def delete(self, key):
         
 
-        
 import csv
 import sys
 
