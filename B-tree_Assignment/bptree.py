@@ -1,5 +1,7 @@
 import bisect
 import math
+import csv
+import sys
 
 class Node:
     def __init__(self, isleaf, nxt, parent, degree, file):
@@ -17,13 +19,13 @@ class Node:
             self = self.parent
         if self.isleaf == 1:
             #if key in self.key == False:
-                index = bisect.bisect_left(self.key, key)
-                self.key.insert(index, key)
-                self.value.insert(index, value)
-                if len(self.key) >= self.degree:
-                    mid = math.floor(self.degree/2)
-                    self.split(mid)
-                    self = self.parent
+            index = bisect.bisect_left(self.key, key)
+            self.key.insert(index, key)
+            self.value.insert(index, value)
+            if len(self.key) >= self.degree:
+                mid = math.floor(self.degree/2)
+                self.split(mid)
+                self = self.parent
         else:
             index = bisect.bisect_left(self.key, key)
             self = self.child[index]
@@ -88,7 +90,7 @@ class Node:
             read_line = read_line.rstrip("\n")
             if "leaf:" in read_line:
                 read_line = read_line.lstrip("leaf:")
-                read_line = read_line.rstrip(" -> ")
+                read_line = read_line.rstrip()
                 node = read_line.split(" -> ")
                 save = self
                 for i in node:
@@ -102,7 +104,7 @@ class Node:
 
             elif "value:" in read_line:
                 read_line = read_line.lstrip("value:")
-                read_line = read_line.rstrip(" | ")
+                read_line = read_line.rstrip()
                 node = read_line.split(" | ")
                 for i in node:
                     value = i.split(" ")
@@ -167,7 +169,8 @@ class Node:
         while self != None:
             for k in self.key:
                 print(str(k), end = " ")
-            print("->", end = " ")
+            if self.next != None:
+                print("->", end = " ")
             self = self.next
         print("")
         self = start
@@ -175,7 +178,8 @@ class Node:
         while self != None:
             for v in self.value:
                 print(str(v), end = " ")
-            print("|", end = " ")
+            if self.next != None:
+                print("|", end = " ")
             self = self.next
         print("")
 
@@ -218,10 +222,100 @@ class Node:
             self = self.next
         
     def delete(self, key):
-        dd = 0
+        need_del = None
+        left_sibiling = None
+        while self.parent != None:
+            self = self.parent
+        while self.isleaf != 1:
+            index = bisect.bisect_left(self.key, key)
+            if index <= (len(self.key)-1) and self.key[index] == key:
+                index = index + 1
+                need_del = self#leaf 아닌 곳에도 key가 있는지 확인
+                del_index = index - 1
+            if index > 0:
+                left_sibiling = self.child[index-1]
+            else:
+                left_sibling = None
+            self = self.child[index]
+            p_index = index
 
-import csv
-import sys
+        d_index = bisect.bisect_left(self.key, key)
+        del(self.key[d_index])
+        del(self.value[d_index])
+        if need_del != None:
+            need_del.key[del_index] = self.key[d_index]
+
+        while True:
+            if len(self.key) >= math.floor((self.degree-1)/2):#key개수 충분한 경우
+                break
+            else:
+                #오른쪽에서 borrow
+                if index < len(self.parent.key) and len(self.next.key) > math.floor((self.degree-1)/2):
+                    b1 = self.parent.key[p_index]
+                    self.key.append(b1)
+                    if self.isleaf == 1:
+                        self.value.append(self.next.value[0])
+                        del(self.next.value[0])
+                        del(self.next.key[0])
+                        self.parent.key[p_index] = self.next.key[0]
+                    else:
+                        self.child.append(self.next.child[0])
+                        self.next.child[0].parent = self
+                        self.parent.key[p_index] = self.next.key[0]
+                        del(self.next.key[0])
+                        del(self.next.child[0])
+                    break
+
+                #왼쪽에서 borrow
+                elif left_sibiling != None and len(left_sibiling.key) > math.floor((self.degree-1)/2):
+                    s_index = len(left_sibiling.key)-1
+                    if self.isleaf == 1:
+                        self.key.insert(0, left_sibiling.key[s_index])
+                        self.value.insert(0, left_sibiling.value[s_index])
+                        del(left_sibiling.key[s_index])
+                        del(left_sibiling.value[s_index])
+                        self.parent.key[p_index-1] = self.key[0]
+                    else:
+                        b1 = self.parent.key[p_index-1]
+                        self.key.insert(0, b1)
+                        self.child.insert(0, left_sibiling.child[s_index+1])
+                        self.child[0].parent = self
+                        self.parent.key[p_index-1] = left_sibiling.key[s_index]
+                        del(left_sibiling.key[s_index])
+                        del(left_sibiling.child[s_index+1])
+                    break
+
+                #merge
+                else:                      
+                    #오른쪽 노드랑 merge
+                    if index < len(self.parent.key):
+                        self.key = self.key + self.next.key
+                        self.value = self.value + self.next.value
+                        self.next.key = None
+                        self.next.value = None
+                        self.next = self.next.next
+                        del(self.parent.key[p_index])
+                        del(self.parent.child[p_index+1])
+
+                    #왼쪽 노드랑 merge
+                    else:
+                        left_sibiling.key = left_sibiling.key + self.key
+                        left_sibiling.value = left_sibiling.value + self.value
+                        self.key = None
+                        self.value = None
+                        left_sibiling.next = self.next
+                        del(self.parent.key[p_index-1])
+                        del(self.parent.child[p_index])
+                        
+                    self = self.parent
+                    if self.parent == None:
+                        break
+                    p_index = bisect.bisect_left(self.parent.key, self.key[0])
+                    index = p_index
+                    if p_index > 0:
+                        left_sibiling = self.parent.child[p_index-1]
+                    else:
+                        left_sibiling = None
 
 #파일 만들기
 if(sys.argv[1] == "-c"):
@@ -253,7 +347,6 @@ elif(sys.argv[1] == "-i"):
 
 #삭제하기
 elif(sys.argv[1] == "-d"):
-    #기존 index 파일에서 degree 읽어오기
     with open(sys.argv[2], "r") as f:
         degree_line = f.readline()
         degree = degree_line[9:]
@@ -269,10 +362,8 @@ elif(sys.argv[1] == "-d"):
         root.delete(d)
     root.write()
 
-
 #단일 검색하기
 elif(sys.argv[1] == "-s"):
-    #기존 index 파일에서 degree 읽어오기
     with open(sys.argv[2], "r") as f:
         degree_line = f.readline()
         degree = degree_line[9:]
@@ -281,10 +372,8 @@ elif(sys.argv[1] == "-s"):
     root.read(3)
     root.key_search(search_key, 0)#함수내부에서 출력
     
-
 #범위 검색하기
 elif sys.argv[1] == "-r":
-    #기존 index 파일에서 degree 읽어오기
     with open(sys.argv[2], "r") as f:
         degree_line = f.readline()
         degree = degree_line[9:]
